@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BillBnao - Simple Bill Maker</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&amp;family=DM+Sans:wght@400;500&amp;display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --ink: #0f0e0d;
+            --paper: #faf8f4;
+            --gold: #c9923a;
+            --rule: #d8d0c4;
+            --muted: #8a8074;
+            --green: #2d6a4f;
+        }
+        * { box-sizing: border-box; margin:0; padding:0; }
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: #f2ede4;
+            color: var(--ink);
+            min-height: 100vh;
+            padding: 15px;
+        }
+        .header {
+            display: flex; justify-content: space-between; align-items: center;
+            background: white; padding: 15px; border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1); margin-bottom: 20px;
+        }
+        .app-title { font-family: 'Playfair Display', serif; font-size: 28px; font-weight: 700; letter-spacing: -1px; }
+        .profile-btn {
+            background: white; border: 2px solid var(--rule); width: 42px; height: 42px;
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; font-size: 18px;
+        }
+        .main { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 1200px; margin: 0 auto; }
+        @media (max-width: 900px) { .main { grid-template-columns: 1fr; } }
+        
+        .editor {
+            background: white; border-radius: 12px; padding: 25px; box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        .section { margin-bottom: 25px; }
+        .section-label {
+            font-family: 'DM Sans', monospace; font-size: 13px; letter-spacing: 2px;
+            text-transform: uppercase; color: var(--gold); margin-bottom: 12px;
+        }
+        .field { margin-bottom: 18px; }
+        .field label {
+            display: block; font-size: 12px; font-weight: 500; color: var(--muted);
+            margin-bottom: 6px; text-transform: uppercase; letter-spacing: 1px;
+        }
+        .input-wrap {
+            position: relative; display: flex; align-items: center;
+        }
+        .input-wrap input, .input-wrap textarea {
+            flex: 1; padding: 14px 50px 14px 16px; border: 2px solid var(--rule);
+            border-radius: 10px; font-size: 16px; background: #faf8f4;
+        }
+        .input-wrap input:focus, .input-wrap textarea:focus {
+            border-color: var(--gold); outline: none;
+        }
+        .mic-btn {
+            position: absolute; right: 12px; background: none; border: none;
+            width: 36px; height: 36px; border-radius: 50%; color: var(--muted);
+            display: flex; align-items: center; justify-content: center; cursor: pointer;
+            font-size: 20px;
+        }
+        .mic-btn:hover { color: var(--gold); }
+        .mic-btn.recording { color: #c0392b; animation: pulse 1.2s infinite; }
+        @keyframes pulse { 50% { transform: scale(1.15); } }
+        
+        .items-table {
+            width: 100%; border-collapse: collapse; margin-top: 10px;
+        }
+        .items-table th { text-align: left; font-size: 13px; color: var(--muted); padding-bottom: 10px; }
+        .items-table th:nth-child(2), .items-table th:nth-child(3) { text-align: right; }
+        .item-row { border-bottom: 1px solid var(--rule); }
+        .item-row td { padding: 12px 8px; }
+        .item-row input { width: 100%; border: 1px solid var(--rule); border-radius: 8px; padding: 8px; }
+        .item-row input:focus { border-color: var(--gold); }
+        .btn-remove { color: #c0392b; font-size: 22px; background: none; border: none; cursor: pointer; }
+        .btn-add {
+            width: 100%; padding: 14px; background: white; border: 2px dashed var(--rule);
+            border-radius: 10px; font-size: 15px; color: var(--muted); cursor: pointer; margin-top: 10px;
+        }
+        .btn-add:hover { border-color: var(--gold); color: var(--gold); }
+        
+        .preview {
+            background: white; border-radius: 12px; padding: 25px; box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            position: relative;
+        }
+        .invoice-card {
+            background: white; border: 1px solid var(--rule); border-radius: 12px;
+            padding: 35px 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            min-height: 580px;
+        }
+        .invoice-header { display: flex; justify-content: space-between; margin-bottom: 25px; }
+        .invoice-title { font-family: 'Playfair Display', serif; font-size: 38px; font-weight: 700; }
+        .invoice-number { font-family: monospace; color: var(--gold); font-size: 15px; }
+        .bill-to, .bill-from { margin-bottom: 25px; }
+        .bill-to label, .bill-from label { font-size: 11px; color: var(--gold); text-transform: uppercase; letter-spacing: 1px; }
+        .table-preview { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        .table-preview th { text-align: left; font-size: 12px; color: var(--muted); padding-bottom: 8px; border-bottom: 2px solid var(--ink); }
+        .table-preview td { padding: 12px 0; border-bottom: 1px solid var(--rule); }
+        .table-preview td:last-child, .table-preview th:last-child { text-align: right; }
+        .totals { margin-top: 20px; text-align: right; }
+        .totals div { display: flex; justify-content: space-between; padding: 6px 0; font-size: 15px; }
+        .grand { font-size: 22px; font-weight: 700; color: var(--gold); margin-top: 12px; padding-top: 12px; border-top: 2px solid var(--rule); }
+        
+        .toolbar {
+            display: flex; gap: 12px; flex-wrap: wrap; margin-top: 20px;
+        }
+        .btn {
+            flex: 1; padding: 16px; font-size: 16px; font-weight: 600; border-radius: 10px;
+            border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        .btn-pdf { background: var(--ink); color: white; }
+        .btn-mail { background: #2d6a4f; color: white; }
+        .btn-whatsapp { background: #25D366; color: white; }
+        
+        .modal {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; align-items: center; justify-content: center; z-index: 1000;
+        }
+        .modal-content {
+            background: white; width: 90%; max-width: 420px; border-radius: 16px; padding: 25px;
+        }
+        .toast {
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            background: var(--ink); color: white; padding: 14px 24px; border-radius: 50px;
+            font-size: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); display: none; z-index: 2000;
+        }
+        .voice-wizard {
+            position: fixed; bottom: 30px; right: 30px; width: 70px; height: 70px;
+            background: var(--green); color: white; border: none; border-radius: 50%;
+            font-size: 32px; box-shadow: 0 10px 30px rgba(45,106,79,0.4); z-index: 9999;
+            display: flex; align-items: center; justify-content: center; cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="app-title">BillBnao</div>
+        <div style="display:flex; gap:10px; align-items:center;">
+            <button onclick="editProfile()" class="profile-btn">👤</button>
+            <div id="makerNameDisplay" style="font-weight:600;">Your Business</div>
+        </div>
+    </div>
+
+    <div class="main">
+
+        <!-- EDITOR -->
+        <div class="editor">
+            <div class="section">
+                <div class="section-label">Bill To</div>
+                <div class="field">
+                    <label>Customer Name</label>
+                    <div class="input-wrap">
+                        <input type="text" id="clientName" placeholder="Customer name" oninput="livePreview()">
+                        <button class="mic-btn" onclick="startMic(this, 'clientName')">🎤</button>
+                    </div>
+                </div>
+                <div class="field">
+                    <label>Phone</label>
+                    <div class="input-wrap">
+                        <input type="tel" id="clientPhone" placeholder="+91 98765 43210" oninput="livePreview()">
+                        <button class="mic-btn" onclick="startMic(this, 'clientPhone')">🎤</button>
+                    </div>
+                </div>
+                <div class="field">
+                    <label>Address</label>
+                    <div class="input-wrap">
+                        <textarea id="clientAddress" rows="2" placeholder="Full address" oninput="livePreview()"></textarea>
+                        <button class="mic-btn" onclick="startMic(this, 'clientAddress')" style="top:12px;">🎤</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-label">Line Items</div>
+                <table class="items-table">
+                    <thead>
+                        <tr>
+                            <th>Description</th>
+                            <th>Price</th>
+                            <th>Qty</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="itemsBody"></tbody>
+                </table>
+                <button class="btn-add" onclick="addItem()">+ Add new item</button>
+            </div>
+
+            <div class="section">
+                <div class="section-label">Extras</div>
+                <div class="field">
+                    <label>Tax (%)</label>
+                    <div class="input-wrap">
+                        <input type="number" id="taxRate" value="0" step="0.1" oninput="livePreview()">
+                    </div>
+                </div>
+                <div class="field">
+                    <label>Notes / Terms</label>
+                    <div class="input-wrap">
+                        <textarea id="notes" rows="2" placeholder="Payment due in 15 days..." oninput="livePreview()"></textarea>
+                        <button class="mic-btn" onclick="startMic(this, 'notes')" style="top:12px;">🎤</button>
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="generateBill()" style="width:100%; padding:18px; background:var(--gold); color:white; border:none; border-radius:12px; font-size:18px; font-weight:700;">
+                Generate Bill
+            </button>
+        </div>
+
+        <!-- PREVIEW -->
+        <div class="preview">
+            <div style="margin-bottom:15px; font-size:13px; color:var(--muted); text-transform:uppercase;">Live Preview</div>
+            <div id="invoicePreview" class="invoice-card">
+                <!-- Filled by JS -->
+                <div style="text-align:center; padding:80px 20px; color:#ccc; font-style:italic;">
+                    Fill the form on the left<br>and your bill will appear here
+                </div>
+            </div>
+
+            <div class="toolbar">
+                <button class="btn btn-pdf" onclick="downloadPDF()">
+                    📄 Save PDF
+                </button>
+                <button class="btn btn-mail" onclick="sendByEmail()">
+                    ✉️ Mail Bill
+                </button>
+                <button class="btn btn-whatsapp" onclick="sendByWhatsApp()">
+                    📱 WhatsApp
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- BIG FLOATING MIC FOR OLD/ILLITERATE USER -->
+    <button class="voice-wizard" onclick="startVoiceWizard()" title="One-tap voice mode - speak everything">
+        🎤
+    </button>
+
+    <!-- PROFILE MODAL (Bill Maker settings) -->
+    <div id="profileModal" class="modal">
+        <div class="modal-content">
+            <h2 style="margin-bottom:20px;">Your Business Details</h2>
+            <div class="field">
+                <label>Business Name</label>
+                <input type="text" id="makerName" placeholder="Your Shop Name">
+            </div>
+            <div class="field">
+                <label>Phone</label>
+                <input type="tel" id="makerPhone" placeholder="+91 98765 43210">
+            </div>
+            <div class="field">
+                <label>Address</label>
+                <textarea id="makerAddress" rows="3"></textarea>
+            </div>
+            <div style="display:flex; gap:12px; margin-top:25px;">
+                <button onclick="closeProfile()" style="flex:1; padding:14px; background:#eee; border:none; border-radius:10px;">Cancel</button>
+                <button onclick="saveProfile()" style="flex:1; padding:14px; background:var(--gold); color:white; border:none; border-radius:10px;">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST -->
+    <div id="toast" class="toast"></div>
+
+    <script>
+        // STATE
+        let items = [{ desc: '', price: 0, qty: 1 }];
+        let invoiceNum = 'BB-' + String(Math.floor(1000 + Math.random() * 9000));
+        let maker = {
+            name: "Your Business",
+            phone: "+91 98765 43210",
+            address: "123 Market Road, Pune, Maharashtra"
+        };
+
+        // UTILS
+        const fmt = n => Number(n).toFixed(2);
+        function toast(msg, type = '') {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.style.display = 'block';
+            t.style.background = type === 'success' ? '#2d6a4f' : '#0f0e0d';
+            setTimeout(() => t.style.display = 'none', 2800);
+        }
+
+        // VOICE INPUT (works on every mic icon)
+        function startMic(btn, targetId) {
+            if (!('SpeechRecognition' in window) && !('webkitSpeechRecognition' in window)) {
+                toast("Voice not supported on this browser. Use Chrome.", "error");
+                return;
+            }
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            const recognition = new SpeechRecognition();
+            recognition.lang = 'en-IN';           // Good for India
+            recognition.interimResults = false;
+
+            btn.classList.add('recording');
+            recognition.onresult = (e) => {
+                const transcript = e.results[0][0].transcript.trim();
+                const el = document.getElementById(targetId);
+                if (el) {
+                    if (targetId === 'taxRate' || targetId.includes('price') || targetId.includes('qty')) {
+                        const num = parseFloat(transcript) || 0;
+                        el.value = num;
+                    } else {
+                        el.value = transcript;
+                    }
+                    livePreview();
+                }
+                toast("✅ Voice captured!", "success");
+            };
+            recognition.onerror = () => toast("Could not hear clearly. Try again.", "error");
+            recognition.onend = () => btn.classList.remove('recording');
+            recognition.start();
+        }
+
+        // ITEMS
+        function renderItems() {
+            const tbody = document.getElementById('itemsBody');
+            tbody.innerHTML = '';
+            items.forEach((item, i) => {
+                const row = document.createElement('tr');
+                row.className = 'item-row';
+                row.innerHTML = `
+                    <td>
+                        <div class="input-wrap">
+                            <input type="text" value="${item.desc}" placeholder="Item name" oninput="updateItem(${i}, 'desc', this.value)">
+                            <button class="mic-btn" onclick="startMic(this, 'item-desc-${i}'); event.stopImmediatePropagation();">🎤</button>
+                        </div>
+                    </td>
+                    <td>
+                        <input type="number" value="${item.price}" step="0.01" min="0" oninput="updateItem(${i}, 'price', this.value)">
+                    </td>
+                    <td>
+                        <input type="number" value="${item.qty}" step="1" min="1" oninput="updateItem(${i}, 'qty', this.value)">
+                    </td>
+                    <td><button class="btn-remove" onclick="removeItem(${i})">×</button></td>
+                `;
+                // Hidden input trick for voice on item description
+                tbody.appendChild(row);
+            });
+        }
+
+        function updateItem(i, field, value) {
+            items[i][field] = field === 'price' || field === 'qty' ? parseFloat(value) || 0 : value;
+            livePreview();
+        }
+
+        function addItem() {
+            items.push({ desc: '', price: 0, qty: 1 });
+            renderItems();
+            livePreview();
+        }
+
+        function removeItem(i) {
+            if (items.length === 1) {
+                items[0] = { desc: '', price: 0, qty: 1 };
+            } else {
+                items.splice(i, 1);
+            }
+            renderItems();
+            livePreview();
+        }
+
+        // TOTALS
+        function calculate() {
+            let subtotal = 0;
+            items.forEach(it => subtotal += (it.price || 0) * (it.qty || 1));
+            const taxRate = parseFloat(document.getElementById('taxRate').value) || 0;
+            const tax = subtotal * (taxRate / 100);
+            return { subtotal, tax, grand: subtotal + tax };
+        }
+
+        // LIVE PREVIEW
+        function livePreview() {
+            const clientName = document.getElementById('clientName').value || 'Customer';
+            const clientPhone = document.getElementById('clientPhone').value || '';
+            const clientAddress = document.getElementById('clientAddress').value || '';
+            const notes = document.getElementById('notes').value || '';
+            const t = calculate();
+
+            let html = `
+                <div class="invoice-header">
+                    <div>
+                        <div class="invoice-title">INVOICE</div>
+                        <div class="invoice-number">${invoiceNum}</div>
+                    </div>
+                    <div style="text-align:right; font-size:15px; line-height:1.4;">
+                        ${maker.name}<br>
+                        ${maker.phone}<br>
+                        ${maker.address}
+                    </div>
+                </div>
+                
+                <div class="bill-to">
+                    <div style="font-size:12px; color:var(--gold); margin-bottom:6px;">BILL TO</div>
+                    <strong>${clientName}</strong><br>
+                    ${clientPhone ? clientPhone + '<br>' : ''}
+                    ${clientAddress.replace(/\n/g, '<br>')}
+                </div>
+
+                <table class="table-preview">
+                    <thead>
+                        <tr>
+                            <th>Item</th>
+                            <th>Rate</th>
+                            <th>Qty</th>
+                            <th>Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            items.forEach(it => {
+                if (!it.desc) return;
+                const amt = (it.price || 0) * (it.qty || 1);
+                html += `<tr>
+                    <td>${it.desc}</td>
+                    <td style="text-align:right">₹${fmt(it.price)}</td>
+                    <td style="text-align:right">${it.qty}</td>
+                    <td style="text-align:right">₹${fmt(amt)}</td>
+                </tr>`;
+            });
+
+            html += `</tbody></table>`;
+
+            html += `
+                <div class="totals">
+                    <div>Subtotal <span>₹${fmt(t.subtotal)}</span></div>
+                    <div>Tax (${document.getElementById('taxRate').value || 0}%) <span>₹${fmt(t.tax)}</span></div>
+                    <div class="grand">Total Due <span>₹${fmt(t.grand)}</span></div>
+                </div>
+                ${notes ? `<div style="margin-top:25px; font-size:13px; color:#666;">Notes: ${notes}</div>` : ''}
+                <div style="margin-top:40px; text-align:center; font-size:11px; color:#aaa;">Generated with BillBnao • ${new Date().toLocaleDateString('en-IN')}</div>
+            `;
+
+            document.getElementById('invoicePreview').innerHTML = html;
+        }
+
+        // GENERATE (just refreshes preview)
+        function generateBill() {
+            livePreview();
+            toast("Bill ready! Use the buttons below to save or send.", "success");
+        }
+
+        // SAVE PDF
+        function downloadPDF() {
+            livePreview();
+            toast("Opening print dialog → Choose 'Save as PDF'", "success");
+            setTimeout(() => window.print(), 300);
+        }
+
+        // EMAIL
+        function sendByEmail() {
+            livePreview();
+            const clientName = document.getElementById('clientName').value || 'Customer';
+            const total = calculate().grand;
+            const subject = encodeURIComponent(`Invoice ${invoiceNum} - ₹${fmt(total)}`);
+            const body = encodeURIComponent(`Hi ${clientName},\n\nPlease find your bill attached.\nTotal: ₹${fmt(total)}\n\nThank you for your business!\n\nBillBnao`);
+            window.location.href = `mailto:?subject=${subject}&body=${body}`;
+            toast("Mail app opened with bill details!", "success");
+        }
+
+        // WHATSAPP
+        function sendByWhatsApp() {
+            livePreview();
+            const clientName = document.getElementById('clientName').value || 'Customer';
+            const total = calculate().grand;
+            let text = `*Invoice ${invoiceNum}*\n\n`;
+            text += `To: ${clientName}\n`;
+            text += `Total: ₹${fmt(total)}\n\n`;
+            text += `Please pay soon. Thank you!\nGenerated with BillBnao`;
+            const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+            window.open(url, '_blank');
+            toast("WhatsApp opened! Save PDF first and attach it.", "success");
+        }
+
+        // PROFILE
+        function editProfile() {
+            document.getElementById('makerName').value = maker.name;
+            document.getElementById('makerPhone').value = maker.phone;
+            document.getElementById('makerAddress').value = maker.address;
+            document.getElementById('profileModal').style.display = 'flex';
+        }
+        function saveProfile() {
+            maker.name = document.getElementById('makerName').value || maker.name;
+            maker.phone = document.getElementById('makerPhone').value || maker.phone;
+            maker.address = document.getElementById('makerAddress').value || maker.address;
+            document.getElementById('makerNameDisplay').textContent = maker.name;
+            closeProfile();
+            livePreview();
+            toast("Business details updated!", "success");
+        }
+        function closeProfile() {
+            document.getElementById('profileModal').style.display = 'none';
+        }
+
+        // VOICE WIZARD (for completely illiterate users - one tap)
+        function startVoiceWizard() {
+            toast("🎤 Voice mode started. Speak step by step.", "success");
+            // Step 1: Customer name
+            setTimeout(() => {
+                const nameMic = document.querySelector('#clientName + .mic-btn');
+                if (nameMic) startMic(nameMic, 'clientName');
+            }, 800);
+        }
+
+        // INIT
+        window.onload = () => {
+            document.getElementById('makerNameDisplay').textContent = maker.name;
+            renderItems();
+            livePreview();
+        };
+
+        // Print styles
+        const printStyle = document.createElement('style');
+        printStyle.innerHTML = `
+            @media print {
+                body * { visibility: hidden; }
+                .preview, .preview * { visibility: visible; }
+                .preview { position: absolute; left: 0; top: 0; width: 100%; }
+                .main, .header, .voice-wizard, .toolbar { display: none !important; }
+                .invoice-card { box-shadow: none; border: none; }
+            }
+        `;
+        document.head.appendChild(printStyle);
+    </script>
+</body>
+</html>
